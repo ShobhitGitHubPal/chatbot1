@@ -7,23 +7,31 @@ from bs4 import BeautifulSoup
 import nltk
 from socket import *
 import numpy as np
-from flask import Flask, jsonify, render_template, request, make_response, redirect, url_for
+from flask import Flask, session, jsonify, render_template, request, make_response, redirect, url_for
 from nltk.stem import WordNetLemmatizer
 from pymongo import MongoClient
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 # from requests import get 
 import requests
-
+# from flask_session import Session
 from werkzeug.utils import secure_filename
+from datetime import datetime
+import datetime
 
 # import wikipedia
 from googlesearch import search
 # import time
 # from googlesearch.googlesearch import search
 
+
 lemmatizer = WordNetLemmatizer()
 app = Flask(__name__)
+
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+# Session(app)
+
 app.config['UPLOAD_FOLDER'] = 'uploaded'
 # file=os.path.join(os.getcwd(),'uploaded_file')
 # print(file,"files")
@@ -63,11 +71,9 @@ def preprocess_input(text):
     # text= text.decode('utf-8')
     text = str(text)
 
-    # text = "Your string"
+    # bytes_value = text.encode('utf-8')  # Convert string to bytes
+    # quote_from_bytes(bytes_value)
     text_bytes = text.encode('utf-8')  # Convert string to bytes
-
-# Use the bytes object with quote_from_bytes()
-    # encoded_text = quote_from_bytes(text_bytes)
 
     tokens = nltk.word_tokenize(text)
     # tokens = nltk.TreebankWordTokenizer(text)
@@ -88,29 +94,7 @@ def generate_response(intent):
             return np.random.choice(responses)
 
 
-# def perform_google_search(userText):
-    # search_results = []
-    # # google_search = requests.get("https://www.google.com/search?q=" + userText)
 
-    # google_search = requests.get("https://www.google.com/search?q=abcd&sxsrf=APwXEdcvXDTQ3mPaOtuOrE3cQXMJT2uQpA%3A1682601521037&source=hp&ei=MHZKZMfuPNmp2roPlvKquAs&iflsig=AOEireoAAAAAZEqEQaIZgcz-h3Gk58rQcaK7GbTETRJ6&ved=0ahUKEwjHxtSPk8r-AhXZlFYBHRa5CrcQ4dUDCBE&oq=abcd&gs_lcp=Cgdnd3Mtd2l6EAxQAFgAYABoAHAAeACAAQCIAQCSAQCYAQA&sclient=gws-wiz")
-
-    
-    # # print(google_search.text)
-    # soup = BeautifulSoup(google_search.text, 'html.parser')
-    # print(soup)
-    # search_results = soup.find_all('p')
-
-    
-    # Extract the URLs from the search results
-    # search_urls = [result['href'] for result in search_results]
-    # return search_urls
-
-# def perform_google_search(userText):
-    # search_results = []
-    # query = "https://www.bing.com/ " + userText
-    # for result in search(query, num=5, stop=5, lang='en'):
-    #     search_results.append(result)
-    # return search_results
 
 def perform_google_search(userText):
     search_results = []
@@ -119,50 +103,83 @@ def perform_google_search(userText):
         search_results.append(result)
     # print(search_results)
     paragraph_content = []
-    
+    session['upload_response'] = paragraph_content
+    num_lines = 5  # Number of important lines to display
     for url in search_results:
         response = requests.get(url)
         
         soup = BeautifulSoup(response.text, 'html.parser')
+        
         paragraphs = soup.find_all('p')
 
+        lines_displayed = 0 #
         for paragraph in paragraphs:
-            paragraph_content.append(paragraph.text)
+            # lines= paragraph.text.lower()
+            # for line in lines:
+            #     if line:
+            #         paragraph_content.append(line)
+            #         lines_displayed += 1
+            #         if lines_displayed == num_lines:
+            #             break
+            # if lines_displayed == num_lines:
+            #     break
+
+            lines = paragraph.text.split('. ')#
+            for line in lines:#
+                if line.strip() != '':#
+                    paragraph_content.append(line.strip())#
+                    lines_displayed += 1#
+                    if lines_displayed == num_lines:#
+                        break#
+            if lines_displayed == num_lines:#
+                break#
+
+            # paragraph_content.append(paragraph.text)
+            
     
     return "".join(paragraph_content)
 
-
-# def perform_google_search(userText):
-#     search_results = []
-#     query = userText
-#     try:
-#         for result in search(query, tld="co.in", num=5, stop=5, lang='en'):
-#             search_results.append(result)
         
-#         paragraph_content = []
-#         for url in search_results:
-#             try:
-#                 response = requests.get(url)
-#                 soup = BeautifulSoup(response.text, 'html.parser')
-#                 paragraphs = soup.find_all('p', string=True)
+   
+    
+app.static_folder = 'static'
 
-#                 for paragraph in paragraphs:
-#                     paragraph_content.append(paragraph.text)
-#             except Exception as e:
-#                 print(f"Error occurred while scraping URL: {url}")
-#                 print(e)
+# @app.route("/")
+# def home(): 
+    
+#     return render_template("index.html")
+
+
+# @app.route("/", methods=['GET', 'POST'])
+# def home():
+#     # ...
+#     return render_template("index.html")
+
+
+@app.route("/", methods=['GET', 'POST'])
+def home():
+    DateTime = None
+    if 'upload_response' in session:
+        # session['upload_file'] = session['upload_file']  # Update to store the filename instead of the function reference
+        # session.pop('upload_file', None)  # Use the string 'upload_file' as the key
+        filename =session['upload_file'] # Update to store the filename instead of the function reference
+        session.pop('upload_file', None)
         
-#         return "".join(paragraph_content)
-#     except Exception as e:
-#         print("Error occurred during the Google search.")
-#         print(e)
-#         return ""
+        response = session['upload_response']
 
+        # for response in session['upload_response']:
+        # return
 
-
-
+        session.pop('upload_response', None)
+          # Remove the session variable after retrieving its value
+        current_time = datetime.datetime.now().time()
+        formatted_time = current_time.strftime("%H:%M")
+        print(formatted_time)
+        return render_template("index.html", formatted_time=formatted_time, response=response, filename=filename)
+    return render_template("index.html")
 
 # Implement a loop to take input and generate responses
+# data = ['i want upload a file' or 'I want upload a file.']
 
 def chatbot_response(userText):
     preprocessed_input = preprocess_input(userText)
@@ -171,184 +188,39 @@ def chatbot_response(userText):
     if userText in question:
         intent = predict_intent(preprocessed_input)
         res = generate_response(intent)
-        # print('response')
+        # session['upload_response'] = res
         return res
-        # print(res)
-    else:
+        
+    else: 
         google_results = perform_google_search(userText)
         # print("WRGFETGTRSRHYRJHRE",google_results)
         if google_results:
-
             return "Here are some search results: \n  \t"  + "".join(google_results)
         
         else:
             return "I'm sorry, I couldn't find any information."
-
-    # else:
-    #     return generate_response(intent)
     
-app.static_folder = 'static'
-
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-
-
-
-# def chatbot_response(userText):
-#     preprocessed_input = preprocess_input(userText)
-#     intent = predict_intent(preprocessed_input)
-#     res = generate_response(intent)  
-#     return res
- 
-app.static_folder = 'static'
-
-################ for open file ####################
-
-# @app.route("/", methods=['POST', 'GET'])
-# def upload():
-#     user_text = request.args.get('msg')
-#     if user_text == 'i want upload a file':
-#         return redirect("/uploader")
-    # else:
-    #     return chatbot_response(user_text)
-    
-# @app.route("/uploader")
-# def uploader():
-#     return render_template("upload_file.html")
- 
-
-##############################################################
-
-
-# @app.route("/")
-# def index():
-#     return render_template("index.html")
-
-# @app.route("/uploader")
-# def uploader():
-#     return render_template("upload_file.html")
-
-###############  here get response ################################
-# @app.route("/get", methods=['GET'])
-# def get():
-#     userText = request.args.get('msg')
-
-#     # user_text = request.args.get('msg')
-#     a='i want upload a file'
-#     b='I want to upload a file.'
-#     c='i want to upload a file'
-#     d='I want upload a file.'
-#     if userText == a or userText == b or userText == c or userText == d :
-#         return redirect("/upload_file")
-#     collection.insert_one({'usertext':userText})
-#     print(userText)
-#     return chatbot_response(userText)
-
-# @app.route("/upload_file")
-# def upload_file():
-#     return render_template("upload_file.html" , message="i want upload a file")
-#######################################################################################
-
-############################# here upload file ########################################
-# @app.route("/upload_file" , methods=['POST','GET'])
-# def upload_file():
-#     if request.method=='POST':
-#         f= request.files['file'] 
-#         print(f)
-#         file_doc = {
-#             'filename': f.filename
-#             }
-#         db['files'].insert_one(file_doc)
-
-#         f.save(os.path.join(app.config['UPLOAD_FOLDER'], f.filename))
-#         # f.save("/uploaded_file" + f.filename) 
-#         print(f)
-        
-#         return 'uploaded_file  successfully '
-#     return render_template("upload_file.html" ,message="I want to upload a file.")    ## , message="i want upload a file"
-###########################################################################################
-
-# @app.route('/submit', methods=['GET'])
-# def submit():
-#     message_text = request.args.get('messageText')
-#     collection.insert_one({'usertext': message_text})
-#     print(message_text)  # Print the message text for debugging
-#     return chatbot_response(message_text)  # Return a response indicating successful processing
-
-# def upload_file():
-#         f = request.files['file']
-#         msg= request.form['msg']
-#         file_url = 'https://mpagapi.mpulsenet.com/csv_upload'  
-#         # files = {'file': f, 'msg':msg}
-#         # f.save(file_url)
-#         files = {
-#             'uploadFile': (f.filename, f, 'text/csv'),
-#         } 
-#         boddy={
-#             'uploadfor': 'outage_check_CP_DA0019BA'
-#         }
-
-#         print('kfehugyuewhjkengkieugiej',files)
-#         # print('kndjbud',files)
-#         response = requests.post(file_url, files=files,data=boddy)
-#         print(response)
-        
-#         if response.status_code == 200 or response.status_code == 201:
-#             # return 'File uploaded successfully!'+str(response.json())
-#             # response_data = json.dumps(response.json()) 
-#             response_data = response.json() 
-#             if response_data:
-#                 return response_data
-#                 # return redirect('/') 
-#                 # return render_template("upload_file.html", message="I want to upload a file." )
-#                 # return render_template("show_resp.html", message="File uploaded successfully!", response=response_data )
-#         else:          
-#             return 'File upload failed.'
-
-
-
-
-@app.route("/get", methods=['GET'])
-def get():
-    userText = request.args.get('msg')
-
-    # a = 'i want upload a file'
-    # b = 'I want to upload a file.'
-    # c = 'i want to upload a file'
-    # d = 'I want upload a file.'
-    
-    # if userText == a or userText == b or userText == c or userText == d:   ##.lower() in [a, b, c, d]:
-    #     return redirect("/upload_file")
-     
-        # return render_template("upload_file.html", message=userText, chatbot_response=None) 
-    collection.insert_one({'usertext': userText})
-
-        # response = chatbot_response(userText)
-    # response_data = response.json() 
-    # if response_data:
-    #     return response_data
-    
-    return chatbot_response(userText)
-    # return render_template("index.html", message=userText, chatbot_response=response)
-    
-    
-
-@app.route("/upload_file", methods=['POST',"GET"])
-def upload_file():
-    if request.method == 'POST':
+@app.route("/upload", methods=['POST',"GET"])
+def upload_file():   
+    if request.method== 'POST':
+        # if 'file' not in request.files:
+        #     return "No file part in the request"
         f = request.files['file']
-        msg= request.form['msg']
+        print(f)
+        if not file:
+            print('file not')
+            # return jsonify({'message': 'No file selected'})
+
+        # msg= request.form.get('msg')
         file_url = 'https://mpagapi.mpulsenet.com/csv_upload'  
-        # files = {'file': f, 'msg':msg}
-        # f.save(file_url)
+        
         files = {
             'uploadFile': (f.filename, f, 'text/csv'),
         } 
         boddy={
             'uploadfor': 'outage_check_CP_DA0019BA'
         }
+        session['upload_file'] = f.filename
 
         print('kfehugyuewhjkengkieugiej',files)
         # print('kndjbud',files)
@@ -357,22 +229,43 @@ def upload_file():
         
         if response.status_code == 200 or response.status_code == 201:
             # return 'File uploaded successfully!'+str(response.json())
-            # response_data = json.dumps(response.json()) 
-
-            response_data = response.json() 
+            response_data = json.dumps(response.json()) 
+            # response = []
+            # response_data.append(response)
+            session['upload_response'] = response_data
             
-            if response_data:
-                return response_data
-                # return chatbot_response(response_data)
-                # return response() 
-                # return render_template("upload_file.html", message="I want to upload a file." )
-                # return render_template("show_resp.html", message="File uploaded successfully!", response=response_data )
-        else:          
-            return 'File upload failed.'
+            return redirect('/')
+        else:
+            session['upload_response'] = 'File upload failed.'
 
-    return render_template("upload_file.html", message="I want to upload a file." )
+    return render_template("upload_file.html" ,message="I want to upload a file." )
 
+@app.route("/get", methods=['GET','POST'])
+def get():
+    userText = request.args.get('msg')
+    collection.insert_one({'usertext': userText})
+    if userText == 'i want upload a file' :
+        return redirect('upload')
+    # bot_response = chatbot_response(userText)
+    # return bot_response
+    return chatbot_response(userText)
  
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=2020)
 
+
+
+
+
+
+# lines = paragraph.text.split('. ')#
+            # for line in lines:#
+            #     if line.strip() != '':#
+            #         paragraph_content.append(line.strip())#
+            #         lines_displayed += 1#
+            #         if lines_displayed == num_lines:#
+            #             break#
+            # if lines_displayed == num_lines:#
+            #     break#
+
+            # paragraph_content.append(paragraph.text)

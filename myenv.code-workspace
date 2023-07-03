@@ -1,0 +1,13 @@
+{
+	"folders": [
+		// {
+		// 	"name": "myenv"
+		// 	// "path": "../dchat/myenv"
+		// },
+		{
+			"name": "New ChatBot",
+			"path": "."
+		}
+	],
+	"settings": {}
+}
