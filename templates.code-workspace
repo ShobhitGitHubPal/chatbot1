@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../New folder (2)/Newcode/templates"
+		},
+		{
+			"path": "static"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "templates",
+		"liveServer.settings.port": 5501
+	}
+}
